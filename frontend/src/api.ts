@@ -3,7 +3,9 @@ export async function api<T = any>(path: string, options: RequestInit = {}): Pro
   if (options.body && !(options.body instanceof FormData) && !headers.has("Content-Type")) {
     headers.set("Content-Type", "application/json");
   }
-  const response = await fetch(path.startsWith("/api") ? path : `/api${path}`, {
+  const apiPath = path.startsWith("/api") ? path : `/api${path}`;
+  const apiBaseUrl = (import.meta.env.VITE_API_BASE_URL || "https://reachout-dzwy.onrender.com").replace(/\/+$/, "");
+  const response = await fetch(`${apiBaseUrl}${apiPath}`, {
     ...options, headers, credentials: "include"
   });
   const data = await response.json().catch(() => ({}));
