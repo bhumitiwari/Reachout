@@ -14,15 +14,20 @@ const loginSchema = z.object({
   password: z.string().min(1).max(128)
 });
 const COOKIE = "session";
+const SESSION_DURATION_MS = 30 * 24 * 60 * 60 * 1000;
+const crossSiteCookies = new URL(config.APP_ORIGIN).protocol === "https:";
 
 function cookieOptions() {
   return {
-    httpOnly: true, secure: config.SESSION_COOKIE_SECURE === "true",
-    sameSite: "lax", path: "/", maxAge: 1000 * 60 * 60 * 24 * 7
+    httpOnly: true,
+    secure: crossSiteCookies || config.SESSION_COOKIE_SECURE === "true",
+    sameSite: crossSiteCookies ? "none" : "lax",
+    path: "/",
+    maxAge: SESSION_DURATION_MS
   };
 }
 function signSession(userId) {
-  const payload = Buffer.from(JSON.stringify({ sub: userId, exp: Date.now() + 7 * 86400000 })).toString("base64url");
+  const payload = Buffer.from(JSON.stringify({ sub: userId, exp: Date.now() + SESSION_DURATION_MS })).toString("base64url");
   const signature = crypto.createHmac("sha256", config.SESSION_SECRET).update(payload).digest("base64url");
   return `${payload}.${signature}`;
 }
@@ -77,7 +82,8 @@ export async function login(req, res) {
   return res.json({ user: { id: user.id, name: user.name, email: user.email } });
 }
 export function logout(req, res) {
-  res.clearCookie(COOKIE, { httpOnly: true, secure: config.SESSION_COOKIE_SECURE === "true", sameSite: "lax", path: "/" });
+  const { httpOnly, secure, sameSite, path } = cookieOptions();
+  res.clearCookie(COOKIE, { httpOnly, secure, sameSite, path });
   res.json({ ok: true });
 }
 export async function me(req, res) {
